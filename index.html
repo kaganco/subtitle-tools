@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subtitle Merger — Subtitle Tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2e2e2e;
+      --text: #e8e8e8;
+      --muted: #888;
+      --accent: #c8c8c8;
+      --success: #4caf50;
+      --warn: #e0a840;
+      --danger: #e05050;
+      --radius: 6px;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+    }
+
+    header p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tool-nav {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .tool-nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+
+    .tool-nav a:hover {
+      color: var(--text);
+      border-color: #555;
+      background: #1f1f1f;
+    }
+
+    .tool-nav a.active {
+      color: var(--accent);
+      border-color: #444;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 660px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .drop-zones {
+      display: flex;
+      gap: 14px;
+    }
+
+    .drop-zone {
+      flex: 1 1 0;
+      min-width: 0;
+      overflow: hidden;
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 22px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-align: center;
+      min-height: 110px;
+      user-select: none;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.hover {
+      border-color: #666;
+      background: #1f1f1f;
+    }
+
+    .drop-zone.loaded {
+      border-color: #3a5a3a;
+      background: #161e16;
+    }
+
+    .drop-zone.loaded:hover {
+      border-color: #4caf50;
+      background: #192019;
+    }
+
+    .drop-zone .dz-icon {
+      font-size: 26px;
+      line-height: 1;
+      opacity: 0.5;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .drop-zone:hover .dz-icon,
+    .drop-zone.hover .dz-icon {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    .drop-zone.loaded .dz-icon {
+      opacity: 0.8;
+    }
+
+    .drop-zone .dz-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .drop-zone .dz-hint {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .drop-zone .dz-filename {
+      font-size: 12px;
+      color: var(--success);
+      font-weight: 500;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      padding: 0 4px;
+      box-sizing: border-box;
+    }
+
+    input[type="file"] { display: none; }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 7px 14px;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled) { background: #252525; border-color: #555; }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    button.primary {
+      border-color: #555;
+      color: var(--accent);
+    }
+
+    button.load-btn {
+      border-color: var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      padding: 5px 11px;
+    }
+    button.load-btn:hover:not(:disabled) { color: var(--text); border-color: #555; }
+
+    button.download-btn {
+      border-color: #555;
+      color: var(--success);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .info-box {
+      background: #161616;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .info-box .val { color: var(--text); font-weight: 500; font-family: monospace; }
+    .info-box .diff { color: var(--warn); font-weight: 600; }
+
+    .status {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status.ok { color: var(--success); }
+    .status.err { color: var(--danger); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 12px;
+    }
+
+    th {
+      text-align: left;
+      padding: 5px 8px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    td {
+      padding: 6px 8px;
+      border-bottom: 1px solid #1f1f1f;
+      color: var(--text);
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .ttime { color: var(--muted); font-size: 11px; font-family: monospace; white-space: nowrap; }
+
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 600;
+      margin-bottom: 3px;
+    }
+    .tag.top { background: #1a2030; color: #90b8e8; border: 1px solid #2a3a55; }
+    .tag.bot { background: #1e1a10; color: #d4a870; border: 1px solid #40300a; }
+
+    .scroll-box {
+      max-height: 260px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #333 transparent;
+    }
+
+    .shift-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .shift-row label {
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    input[type="number"].ms-input {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 7px 10px;
+      width: 140px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="number"].ms-input:focus { border-color: #666; }
+    input[type="number"].ms-input::-webkit-inner-spin-button,
+    input[type="number"].ms-input::-webkit-outer-spin-button { opacity: 0.4; }
+  </style>
+</head>
+<body>
+
+<div class="tool-nav">
+  <a href="index.html" class="active">✂ Subtitle Merger</a>
+  <a href="extract.html">🎬 Extract Subtitles</a>
+  <a href="convert.html">🔤 UTF-8 Converter</a>
+</div>
+
+<header>
+  <h1>Subtitle Merger</h1>
+  <p>Merges and downloads two .srt files.</p>
+</header>
+
+<!-- File Upload -->
+<div class="card">
+  <div class="card-title">Files</div>
+
+  <div class="drop-zones">
+    <!-- Primary Subtitle -->
+    <div class="drop-zone" id="dz1" onclick="document.getElementById('file1').click()">
+      <div class="dz-icon">📄</div>
+      <div class="dz-label">Primary Subtitle</div>
+      <div class="dz-hint" id="hint1">Drag &amp; drop or click</div>
+      <div class="dz-filename" id="name1" style="display:none;"></div>
+      <input type="file" id="file1" accept=".srt" />
+    </div>
+
+    <!-- Secondary Subtitle -->
+    <div class="drop-zone" id="dz2" onclick="document.getElementById('file2').click()">
+      <div class="dz-icon">📄</div>
+      <div class="dz-label">Secondary Subtitle</div>
+      <div class="dz-hint" id="hint2">Drag &amp; drop or click</div>
+      <div class="dz-filename" id="name2" style="display:none;"></div>
+      <input type="file" id="file2" accept=".srt" />
+    </div>
+  </div>
+</div>
+
+<!-- Time Shift -->
+<div class="card">
+  <div class="card-title">Primary Subtitle Time Shift</div>
+  <div class="shift-row">
+    <label for="msOffset">Offset (ms):</label>
+    <input
+      type="number"
+      id="msOffset"
+      class="ms-input"
+      value="0"
+      step="100"
+      placeholder="e.g. -1500 or 2000"
+    />
+    <button class="primary" id="btnShift" disabled onclick="doShift()">⏱ Apply &amp; Download</button>
+  </div>
+  <div id="shiftStatus" class="status" style="margin-top:10px;"></div>
+</div>
+
+<!-- Actions -->
+<div class="card">
+  <div class="card-title">Actions</div>
+  
+  <div style="margin-bottom: 14px;">
+    <label style="display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text); user-select: none;">
+      <input type="checkbox" id="chkTop" checked style="cursor: pointer; width: 16px; height: 16px; accent-color: var(--accent);" />
+      <span>Put the secondary subtitle at the top of the screen</span>
+    </label>
+  </div>
+
+  <div class="actions-row">
+    <button class="download-btn primary" id="btnMerge" disabled onclick="doMergeAndDownload()">↓ Merge &amp; Download</button>
+  </div>
+
+  <div id="statusMsg" class="status"></div>
+</div>
+
+<!-- Preview -->
+<div class="card" id="previewCard" style="display:none;">
+  <div class="card-title">
+    Preview
+    <span style="color:#444;font-weight:400;text-transform:none;font-size:11px;letter-spacing:0;"> — first 10 blocks</span>
+  </div>
+  <div class="scroll-box">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Time</th>
+          <th id="thSec">Secondary Subtitle (top)</th>
+          <th>Primary Subtitle (bottom)</th>
+        </tr>
+      </thead>
+      <tbody id="previewBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // ── State ─────────────────────────────────────────────────────────────────
+  let sub1 = null;
+  let sub2 = null;
+  let sub1Name = '';
+  let mergedSrt = '';
+  let wasSynced = false;
+
+  // ── SRT Parser ────────────────────────────────────────────────────────────
+  function parseSrt(text) {
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+    // Remove BOM if present
+    text = text.replace(/^\uFEFF/, '');
+    const blocks = [];
+    const rawBlocks = text.split(/\n{2,}/);
+
+    for (const raw of rawBlocks) {
+      const lines = raw.trim().split('\n');
+      if (lines.length < 2) continue;
+
+      let timeLine = '';
+      let textLines = [];
+      let idx = blocks.length + 1;
+
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('-->')) {
+          timeLine = lines[i].trim();
+          if (i > 0) {
+            const n = parseInt(lines[i - 1].replace(/\D/g, ''), 10);
+            if (!isNaN(n)) idx = n;
+          }
+          textLines = lines.slice(i + 1).filter(l => l.trim() !== '');
+          break;
+        }
+      }
+
+      if (!timeLine) continue;
+      const parts = timeLine.split('-->');
+      if (parts.length < 2) continue;
+
+      blocks.push({
+        idx,
+        startMs: timeToMs(parts[0].trim()),
+        endMs:   timeToMs(parts[1].trim()),
+        text:    textLines.join('\n'),
+      });
+    }
+
+    return blocks;
+  }
+
+  function timeToMs(t) {
+    const m = t.match(/(\d+):(\d+):(\d+)[,.](\d+)/);
+    if (!m) return 0;
+    return (
+      parseInt(m[1]) * 3600000 +
+      parseInt(m[2]) * 60000  +
+      parseInt(m[3]) * 1000   +
+      parseInt(m[4].padEnd(3, '0').slice(0, 3))
+    );
+  }
+
+  function msToTime(ms) {
+    if (ms < 0) ms = 0;
+    const h   = Math.floor(ms / 3600000); ms %= 3600000;
+    const min = Math.floor(ms / 60000);   ms %= 60000;
+    const s   = Math.floor(ms / 1000);
+    const mil = ms % 1000;
+    return `${pad2(h)}:${pad2(min)}:${pad2(s)},${pad3(mil)}`;
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function pad3(n) { return String(n).padStart(3, '0'); }
+
+  // ── File Loading ──────────────────────────────────────────────────────────
+  function readFileBuffer(file, which) {
+    if (which === 1) sub1Name = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const buf   = e.target.result;
+      const bytes = new Uint8Array(buf);
+      let text;
+
+      // Check for UTF-8 BOM (EF BB BF)
+      if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+        text = new TextDecoder('utf-8').decode(buf);
+      } else {
+        // Try UTF-8 first
+        const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+        // Heuristic 1: replacement chars → definitely not UTF-8
+        // Heuristic 2: common Turkish Windows-1254 mis-read chars when decoded as UTF-8
+        //   ð (U+00F0) = ğ,  þ (U+00FE) = ş,  ý (U+00FD) = ı,
+        //   Ð (U+00D0) = Ğ,  Þ (U+00DE) = Ş,  Ý (U+00DD) = İ
+        const hasBadUtf8 = utf8.includes('\uFFFD');
+        const hasWin1254Turkish = /[ðþýÐÞÝ]/.test(utf8);
+        if (hasBadUtf8 || hasWin1254Turkish) {
+          // windows-1254 = Turkish Windows codepage: 0xF0→ğ, 0xFE→ş, 0xFD→ı etc.
+          text = new TextDecoder('windows-1254').decode(buf);
+        } else {
+          text = utf8;
+        }
+      }
+
+      const blocks = parseSrt(text);
+      if (which === 1) sub1 = blocks;
+      else             sub2 = blocks;
+      updateButtons();
+      resetOutput();
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function setDropZoneLoaded(dzId, hintId, nameId, fileName) {
+    const dz   = document.getElementById(dzId);
+    const hint = document.getElementById(hintId);
+    const name = document.getElementById(nameId);
+    dz.classList.add('loaded');
+    hint.style.display = 'none';
+    name.textContent   = fileName;
+    name.style.display = '';
+  }
+
+  function wireFile(inputId, dzId, hintId, nameId, which) {
+    const input = document.getElementById(inputId);
+    const dz    = document.getElementById(dzId);
+
+    // Click → file picker
+    input.addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+      setDropZoneLoaded(dzId, hintId, nameId, file.name);
+      readFileBuffer(file, which);
+    });
+
+    // Drag over
+    dz.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dz.classList.add('hover');
+    });
+
+    dz.addEventListener('dragleave', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dz.classList.remove('hover');
+    });
+
+    // Drop
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      dz.classList.remove('hover');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (!file.name.toLowerCase().endsWith('.srt')) {
+        alert('Please drop a file with a .srt extension.');
+        return;
+      }
+      setDropZoneLoaded(dzId, hintId, nameId, file.name);
+      readFileBuffer(file, which);
+    });
+  }
+
+  wireFile('file1', 'dz1', 'hint1', 'name1', 1);
+  wireFile('file2', 'dz2', 'hint2', 'name2', 2);
+
+  function updateButtons() {
+    const both = !!(sub1 && sub2);
+    document.getElementById('btnMerge').disabled = !both;
+    // Shift only needs sub1
+    document.getElementById('btnShift').disabled = !sub1;
+  }
+
+  function resetOutput() {
+    mergedSrt = '';
+    document.getElementById('previewCard').style.display = 'none';
+    setStatus('', '');
+  }
+
+  // ── Merge & Download ──────────────────────────────────────────────────────
+  function doMergeAndDownload() {
+    if (!sub1 || !sub2) return;
+    resetOutput();
+
+    const placeTop = document.getElementById('chkTop').checked;
+
+    // Deep-copy sub2 so we never mutate the original
+    const blocks2 = sub2.map(b => ({ ...b }));
+
+    const merged = buildMerged(sub1, blocks2, placeTop);
+    mergedSrt = toSrtString(merged);
+
+    renderPreview(merged, placeTop);
+    document.getElementById('previewCard').style.display = 'block';
+
+    const baseName = sub1Name.replace(/\.srt$/i, '');
+    const fileName = `merged-${baseName}.srt`;
+
+    const blob = new Blob([mergedSrt], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const posLabel = placeTop ? 'top of screen' : 'above primary subtitle at bottom';
+    setStatus(`✓ Downloaded — ${merged.length} blocks merged (${posLabel}).`, 'ok');
+  }
+
+  function buildMerged(s1, s2, placeTop) {
+    const blocks = [];
+
+    // Process Primary Subtitle (s1) -> Bottom position
+    for (const b of s1) {
+      blocks.push({
+        startMs: b.startMs,
+        endMs:   b.endMs,
+        text:    b.text,
+        pos:     'bot',
+        priText: b.text,
+      });
+    }
+
+    // Process Secondary Subtitle (s2)
+    for (const b of s2) {
+      if (placeTop) {
+        // Top position with {\an8} tag
+        blocks.push({
+          startMs: b.startMs,
+          endMs:   b.endMs,
+          text:    `{\\an8}${b.text}`,
+          pos:     'top',
+          secText: b.text,
+        });
+      } else {
+        // Bottom position (standard SRT block)
+        blocks.push({
+          startMs: b.startMs,
+          endMs:   b.endMs,
+          text:    b.text,
+          pos:     'bot',
+          secText: b.text,
+        });
+      }
+    }
+
+    // Sort chronologically by start time, then top before bot
+    blocks.sort((a, b) => a.startMs - b.startMs || (a.pos === 'top' ? -1 : 1));
+
+    // Assign sequential SRT indices
+    return blocks.map((b, i) => ({ idx: i + 1, ...b }));
+  }
+
+  function toSrtString(blocks) {
+    // Prepend UTF-8 BOM so special characters are preserved in all players
+    const bom  = '\uFEFF';
+    const body = blocks
+      .map(b => `${b.idx}\n${msToTime(b.startMs)} --> ${msToTime(b.endMs)}\n${b.text}`)
+      .join('\n\n');
+    return bom + body + '\n';
+  }
+
+  // ── Preview Table ─────────────────────────────────────────────────────────
+  function renderPreview(merged, placeTop) {
+    const tbody = document.getElementById('previewBody');
+    tbody.innerHTML = '';
+    const limit = Math.min(merged.length, 10);
+
+    const secHeader = document.getElementById('thSec');
+    if (secHeader) {
+      secHeader.textContent = placeTop ? 'Secondary Subtitle (top)' : 'Secondary Subtitle (bottom)';
+    }
+
+    for (let i = 0; i < limit; i++) {
+      const b = merged[i];
+      const isTop = b.pos === 'top';
+      const secCellContent = b.secText
+        ? `<span class="tag ${isTop ? 'top' : 'bot'}">${isTop ? '↑ top' : '↓ bottom'}</span><br>${esc(b.secText)}`
+        : '<span style="color:#333">—</span>';
+      const priCellContent = b.priText
+        ? `<span class="tag bot">↓ bottom</span><br>${esc(b.priText)}`
+        : '<span style="color:#333">—</span>';
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="ttime">${b.idx}</td>
+        <td class="ttime">${msToTime(b.startMs)}<br>${msToTime(b.endMs)}</td>
+        <td>${secCellContent}</td>
+        <td>${priCellContent}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  function esc(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Time Shift (sub1 only) ────────────────────────────────────────────────
+  function doShift() {
+    if (!sub1) return;
+    const offsetMs = parseInt(document.getElementById('msOffset').value, 10);
+    if (isNaN(offsetMs)) {
+      setShiftStatus('Please enter a valid millisecond value.', 'err');
+      return;
+    }
+
+    const shifted = sub1.map((b, i) => ({
+      idx:     i + 1,
+      startMs: Math.max(0, b.startMs + offsetMs),
+      endMs:   Math.max(0, b.endMs   + offsetMs),
+      text:    b.text,
+    }));
+
+    const srtContent = toSrtString(shifted);
+    const baseName   = sub1Name.replace(/\.srt$/i, '');
+    const sign       = offsetMs >= 0 ? '+' : '';
+    const fileName   = `shifted(${sign}${offsetMs}ms)-${baseName}.srt`;
+
+    const blob = new Blob([srtContent], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const dir = offsetMs > 0
+      ? `${offsetMs} ms shifted forward`
+      : offsetMs < 0
+      ? `${Math.abs(offsetMs)} ms shifted backward`
+      : 'Zero offset — no change';
+    setShiftStatus(`✓ Downloaded — ${shifted.length} blocks, ${dir}.`, 'ok');
+  }
+
+  function setShiftStatus(msg, cls) {
+    const el = document.getElementById('shiftStatus');
+    el.textContent = msg;
+    el.className   = `status ${cls}`;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function setStatus(msg, cls) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className   = `status ${cls}`;
+  }
+</script>
+
+</body>
+</html>

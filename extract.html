@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Subtitle Extractor — Subtitle Tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2e2e2e;
+      --text: #e8e8e8;
+      --muted: #888;
+      --accent: #c8c8c8;
+      --success: #4caf50;
+      --warn: #e0a840;
+      --danger: #e05050;
+      --radius: 6px;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+    }
+
+    header p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tool-nav {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .tool-nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+
+    .tool-nav a:hover {
+      color: var(--text);
+      border-color: #555;
+      background: #1f1f1f;
+    }
+
+    .tool-nav a.active {
+      color: var(--accent);
+      border-color: #444;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 720px;
+      margin-bottom: 16px;
+    }
+
+    .card-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 28px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-align: center;
+      user-select: none;
+      min-height: 110px;
+    }
+
+    .drop-zone:hover, .drop-zone.hover {
+      border-color: #666;
+      background: #1f1f1f;
+    }
+
+    .dz-icon   { font-size: 26px; line-height: 1; opacity: 0.5; transition: opacity 0.2s, transform 0.2s; }
+    .drop-zone:hover .dz-icon, .drop-zone.hover .dz-icon { opacity: 0.9; transform: translateY(-2px); }
+
+    .dz-label    { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--text); }
+    .dz-hint     { font-size: 11px; color: #666; }
+
+    .fmt-tags { display: flex; gap: 6px; }
+    .fmt-tag {
+      font-size: 10px; font-weight: 600; padding: 1px 6px;
+      border-radius: 3px; border: 1px solid var(--border);
+      color: var(--muted); letter-spacing: 0.05em;
+    }
+
+    input[type="file"] { display: none; }
+
+    /* Video Item Card */
+    .video-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: #151515;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .video-card:last-child { margin-bottom: 0; }
+
+    .video-header {
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: #181818;
+      border-bottom: 1px solid transparent;
+    }
+    .video-card.expanded .video-header {
+      border-bottom-color: var(--border);
+    }
+
+    .video-main-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .video-icon { font-size: 18px; opacity: 0.8; flex-shrink: 0; }
+
+    .video-titles {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .video-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .video-sub-info {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .video-status-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-weight: 500;
+    }
+    .status-pending    { background: #222; color: #888; border: 1px solid #333; }
+    .status-processing { background: #1a2433; color: #60a5fa; border: 1px solid #2563eb; }
+    .status-done       { background: #112218; color: #4caf50; border: 1px solid #1e4028; }
+    .status-error      { background: #201010; color: #e05050; border: 1px solid #3a1818; }
+
+    .video-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    /* Progress inside video card */
+    .video-progress-container {
+      padding: 8px 16px 12px;
+      background: #141414;
+    }
+    .video-progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .video-progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.15s linear;
+    }
+    .video-progress-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Subtitle tracks list inside video */
+    .video-tracks-list {
+      padding: 12px 16px;
+    }
+
+    .track-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      border: 1px solid #242424;
+      background: #111111;
+      margin-bottom: 6px;
+    }
+    .track-item:last-child { margin-bottom: 0; }
+
+    .track-num {
+      font-size: 11px; font-weight: 600; color: var(--muted);
+      min-width: 16px; text-align: right; flex-shrink: 0;
+    }
+
+    .track-info { flex: 1 1 0; min-width: 0; }
+    .track-name {
+      font-size: 12px; font-weight: 500; color: var(--text);
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    }
+    .track-meta { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+    /* Badges / tags */
+    .tag {
+      display: inline-block; font-size: 10px;
+      padding: 1px 5px; border-radius: 3px; font-weight: 600;
+    }
+    .tag-srt { background: #112218; color: #4caf50; border: 1px solid #1e4028; }
+    .tag-ass { background: #201a10; color: #e0a840; border: 1px solid #3a2c0a; }
+    .tag-ssa { background: #18102a; color: #a080e0; border: 1px solid #2a1850; }
+    .tag-vtt { background: #0e1e1e; color: #40c0b0; border: 1px solid #163030; }
+    .tag-pgs { background: #201010; color: #e05050; border: 1px solid #3a1818; }
+    .tag-def { background: #1a1a24; color: var(--muted); border: 1px solid var(--border); }
+
+    .track-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* Buttons */
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 5px 11px;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+    button:hover:not(:disabled) { background: #252525; border-color: #555; }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    button.primary    { border-color: #555; color: var(--accent); font-size: 13px; padding: 7px 14px; }
+    button.btn-dl     { border-color: #3a5a3a; color: var(--success); }
+    button.btn-dl:hover:not(:disabled) { border-color: #4caf50; background: #161e16; }
+    button.btn-preview { border-color: var(--border); color: var(--muted); }
+    button.btn-preview:hover:not(:disabled) { color: var(--text); border-color: #555; }
+    button.btn-danger { border-color: #3a1818; color: #e05050; }
+    button.btn-danger:hover:not(:disabled) { background: #201010; border-color: #e05050; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+
+    .actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    .empty-state { text-align: center; padding: 24px 12px; color: var(--muted); font-size: 13px; }
+
+    /* Info banner */
+    .info-box {
+      background: #161616;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 12px; color: var(--muted); line-height: 1.8;
+    }
+
+    /* Preview Modal */
+    .modal-backdrop {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 100;
+      align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-backdrop.open { display: flex; }
+
+    .modal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); width: 100%; max-width: 660px;
+      max-height: 80vh; display: flex; flex-direction: column; overflow: hidden;
+    }
+
+    .modal-header {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+    }
+    .modal-title { font-size: 13px; font-weight: 600; color: var(--accent); }
+    .modal-close {
+      background: none; border: none; color: var(--muted); font-size: 18px;
+      cursor: pointer; padding: 2px 6px; border-radius: 4px; line-height: 1;
+      transition: color 0.15s;
+    }
+    .modal-close:hover { color: var(--text); background: #252525; }
+
+    .modal-body {
+      flex: 1 1 auto; overflow-y: auto; padding: 16px 20px;
+      scrollbar-width: thin; scrollbar-color: #333 transparent;
+      font-family: 'Consolas', monospace; font-size: 12px;
+      line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<div class="tool-nav">
+  <a href="index.html">✂ Subtitle Merger</a>
+  <a href="extract.html" class="active">🎬 Extract Subtitles</a>
+  <a href="convert.html">🔤 UTF-8 Converter</a>
+</div>
+
+<header>
+  <h1>Video Subtitle Extractor</h1>
+  <p>Drag and add multiple MKV/WEBM videos to batch extract and download their subtitles.</p>
+</header>
+
+<!-- File Upload -->
+<div class="card">
+  <div class="card-title">Video Files</div>
+  <div class="drop-zone" id="videoDz" onclick="document.getElementById('videoFile').click()">
+    <div class="dz-icon">🎬</div>
+    <div class="dz-label">Drag or select multiple video files (MKV/WEBM)</div>
+    <div class="dz-hint">Batch subtitle extraction support</div>
+    <div class="fmt-tags">
+      <span class="fmt-tag">MKV</span>
+      <span class="fmt-tag">MKA</span>
+      <span class="fmt-tag">WEBM</span>
+    </div>
+    <input type="file" id="videoFile" accept=".mkv,.mka,.webm" multiple />
+  </div>
+</div>
+
+<!-- Video and Subtitle List -->
+<div class="card" id="videosCard" style="display:none;">
+  <div class="card-header-row">
+    <div class="card-title" id="videosCardTitle">Uploaded Videos</div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-all primary" id="btnDownloadAllGlobal" onclick="downloadAllGlobal()">⬇ Download All Subtitles</button>
+      <button class="btn-danger" onclick="clearAllVideos()">🗑 Clear List</button>
+    </div>
+  </div>
+
+  <div id="videosList"></div>
+</div>
+
+<!-- Info -->
+<div class="card" style="max-width:720px;">
+  <div class="info-box">
+    <strong style="color:var(--text);">Supported subtitles:</strong> SRT, SSA, ASS, WebVTT.<br>
+    PGS / VobSub image-based subtitles appear in the list but cannot be extracted as text.
+  </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-backdrop" id="previewModal" onclick="closeModalBackdrop(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Preview</span>
+      <button class="modal-close" onclick="document.getElementById('previewModal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  EBML / Matroska binary parser — pure JavaScript, no dependencies
+//  Extracts soft subtitle tracks from MKV/MKA/WEBM files.
+// ═══════════════════════════════════════════════════════════════════
+
+const ID = {
+  EBML:           0x1A45DFA3,
+  Segment:        0x18538067,
+  SeekHead:       0x114D9B74,
+  Info:           0x1549A966,
+  TimecodeScale:  0x2AD7B1,
+  Tracks:         0x1654AE6B,
+  TrackEntry:     0xAE,
+  TrackNumber:    0xD7,
+  TrackType:      0x83,
+  FlagDefault:    0x88,
+  FlagForced:     0x55AA,
+  Name:           0x536E,
+  Language:       0x22B59C,
+  LanguageBCP47:  0x22B59D,
+  CodecID:        0x86,
+  CodecPrivate:   0x63A2,
+  Cluster:        0x1F43B675,
+  Timecode:       0xE7,
+  BlockGroup:     0xA0,
+  Block:          0xA1,
+  SimpleBlock:    0xA3,
+  Cues:           0x1C53BB6B,
+  Tags:           0x1254C367,
+  Attachments:    0x1941A469,
+  Chapters:       0x1043A770,
+  Void:           0xEC,
+  CRC32:          0xBF,
+};
+const TRACK_SUBTITLE = 0x11;
+const CHUNK = 32 * 1024 * 1024; // 32 MB sliding window
+
+class MKVFile {
+  constructor(file) {
+    this.file  = file;
+    this.size  = file.size;
+    this._ab   = null;
+    this._view = null;
+    this._s    = 0;
+    this._e    = 0;
+  }
+
+  async load(fileOffset) {
+    if (fileOffset >= this._s && fileOffset < this._e) return;
+    const end  = Math.min(fileOffset + CHUNK, this.size);
+    this._ab   = await this.file.slice(fileOffset, end).arrayBuffer();
+    this._view = new DataView(this._ab);
+    this._s    = fileOffset;
+    this._e    = fileOffset + this._ab.byteLength;
+  }
+
+  has(off, len) { len = len || 1; return off >= this._s && off + len <= this._e; }
+  r(off)        { return off - this._s; }
+
+  async ensure(off, need) { if (!this.has(off, need)) await this.load(off); }
+
+  readID(off) {
+    const b = this._view.getUint8(this.r(off));
+    let w = 1;
+    if      (b & 0x80) w = 1;
+    else if (b & 0x40) w = 2;
+    else if (b & 0x20) w = 3;
+    else if (b & 0x10) w = 4;
+    else return { id: 0, w: 1 };
+    let id = 0;
+    for (let i = 0; i < w; i++) id = (id << 8) | this._view.getUint8(this.r(off) + i);
+    return { id: id >>> 0, w: w };
+  }
+
+  readVINT(off) {
+    const r = this.r(off);
+    const b = this._view.getUint8(r);
+    if (!b) return { val: 0n, w: 8 };
+    let w = 1;
+    while (w <= 8 && !(b & (0x80 >> (w - 1)))) w++;
+    let val = BigInt(b & (0xFF >> w));
+    for (let i = 1; i < w; i++) val = (val << 8n) | BigInt(this._view.getUint8(r + i));
+    return { val: val, w: w };
+  }
+
+  readUInt(off, sz) {
+    const r = this.r(off);
+    let v = 0;
+    for (let i = 0; i < Math.min(sz, 8); i++) v = v * 256 + this._view.getUint8(r + i);
+    return v;
+  }
+
+  readInt16(off) { return this._view.getInt16(this.r(off), false); }
+
+  readStr(off, sz) {
+    const bytes = new Uint8Array(this._ab, this.r(off), sz);
+    try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+    catch { return new TextDecoder('latin1').decode(bytes); }
+  }
+
+  readBytes(off, sz) { return new Uint8Array(this._ab, this.r(off), sz).slice(); }
+}
+
+function hdr(mf, off, cEnd) {
+  const idR = mf.readID(off);
+  const szR = mf.readVINT(off + idR.w);
+  const unknown = szR.val === (1n << (7n * BigInt(szR.w))) - 1n;
+  const elemSz  = unknown ? cEnd - off - idR.w - szR.w : Number(szR.val);
+  const dStart  = off + idR.w + szR.w;
+  const dEnd    = Math.min(dStart + elemSz, cEnd, mf.size);
+  return { id: idR.id, elemSz: elemSz, dStart: dStart, dEnd: dEnd };
+}
+
+const CODEC_MAP = {
+  'S_TEXT/UTF8':   { ext: 'srt', label: 'SRT',    isText: true  },
+  'S_TEXT/ASCII':  { ext: 'srt', label: 'SRT',    isText: true  },
+  'S_TEXT/SSA':    { ext: 'ssa', label: 'SSA',    isText: true  },
+  'S_TEXT/ASS':    { ext: 'ass', label: 'ASS',    isText: true  },
+  'S_TEXT/WEBVTT': { ext: 'vtt', label: 'VTT',    isText: true  },
+  'S_ASS':         { ext: 'ass', label: 'ASS',    isText: true  },
+  'S_SSA':         { ext: 'ssa', label: 'SSA',    isText: true  },
+  'S_VOBSUB':      { ext: 'sub', label: 'VobSub', isText: false },
+  'S_HDMV/PGS':    { ext: 'sup', label: 'PGS',    isText: false },
+  'S_DVBSUB':      { ext: 'bin', label: 'DVBSub', isText: false },
+};
+function codecOf(id) { return CODEC_MAP[id] || { ext: 'bin', label: id || '?', isText: false }; }
+
+const LANG_MAP = {
+  tur:'🇹🇷 Turkish',    tr:'🇹🇷 Turkish',
+  eng:'🇬🇧 English',    en:'🇬🇧 English',
+  deu:'🇩🇪 German',     de:'🇩🇪 German',
+  fra:'🇫🇷 French',     fr:'🇫🇷 French',
+  spa:'🇪🇸 Spanish',    es:'🇪🇸 Spanish',
+  ita:'🇮🇹 Italian',    it:'🇮🇹 Italian',
+  jpn:'🇯🇵 Japanese',   ja:'🇯🇵 Japanese',
+  kor:'🇰🇷 Korean',     ko:'🇰🇷 Korean',
+  zho:'🇨🇳 Chinese', chi:'🇨🇳 Chinese', zh:'🇨🇳 Chinese',
+  por:'🇵🇹 Portuguese', pt:'🇵🇹 Portuguese',
+  rus:'🇷🇺 Russian',    ru:'🇷🇺 Russian',
+  ara:'🇸🇦 Arabic',     ar:'🇸🇦 Arabic',
+  heb:'🇮🇱 Hebrew',     he:'🇮🇱 Hebrew',
+  pol:'🇵🇱 Polish',     pl:'🇵🇱 Polish',
+  nld:'🇳🇱 Dutch',      nl:'🇳🇱 Dutch',
+  swe:'🇸🇪 Swedish',    sv:'🇸🇪 Swedish',
+  nor:'🇳🇴 Norwegian',  no:'🇳🇴 Norwegian',
+  und:'❓ Unknown',
+};
+function langLabel(l) { return LANG_MAP[(l || 'und').toLowerCase()] || ('🌐 ' + l.toUpperCase()); }
+
+async function parseMKVFile(file, onProgress) {
+  var mf  = new MKVFile(file);
+  var ctx = { tracks: new Map(), tcScale: 1000000, clusterTC: 0 };
+  await mf.load(0);
+  var off = 0;
+  while (off < mf.size) {
+    await mf.ensure(off, 12);
+    var h = hdr(mf, off, mf.size);
+    if (h.id === ID.Segment) { await scanSegment(mf, h.dStart, h.dEnd, ctx, onProgress); break; }
+    off = h.dEnd;
+  }
+  return Array.from(ctx.tracks.values()).filter(function(t) { return t.trackType === TRACK_SUBTITLE; });
+}
+
+async function scanSegment(mf, start, end, ctx, onProgress) {
+  var off = start;
+  var tracksReady = false;
+  var nClusters = 0;
+  while (off < end && off < mf.size) {
+    if (!mf.has(off, 12)) await mf.load(off);
+    var h = hdr(mf, off, end);
+    if (h.id === ID.Info) {
+      await scanInfo(mf, h.dStart, h.dEnd, ctx);
+    } else if (h.id === ID.Tracks) {
+      await scanTracks(mf, h.dStart, h.dEnd, ctx);
+      ctx.tracks.forEach(function(t) { t.codec = codecOf(t.codecID); t.isText = t.codec.isText; });
+      tracksReady = true;
+      if (onProgress) onProgress('Searching subtitles…', 15);
+    } else if (h.id === ID.Cluster && tracksReady) {
+      var hasText = Array.from(ctx.tracks.values()).some(function(t) { return t.isText && t.trackType === TRACK_SUBTITLE; });
+      if (hasText) {
+        ctx.clusterTC = 0;
+        await scanCluster(mf, h.dStart, h.dEnd, ctx);
+        nClusters++;
+        if (nClusters % 100 === 0) {
+          var pct = 15 + Math.round((off / mf.size) * 80);
+          if (onProgress) onProgress('Scanning… ' + (off/1048576).toFixed(0) + ' / ' + (mf.size/1048576).toFixed(0) + ' MB', Math.min(pct, 94));
+          await tick();
+        }
+      }
+    }
+    off = h.dEnd;
+  }
+}
+
+async function scanInfo(mf, start, end, ctx) {
+  var off = start;
+  while (off < end) {
+    await mf.ensure(off, 12);
+    var h = hdr(mf, off, end);
+    if (h.id === ID.TimecodeScale && h.elemSz <= 8) {
+      await mf.ensure(h.dStart, h.elemSz);
+      ctx.tcScale = mf.readUInt(h.dStart, h.elemSz);
+    }
+    off = h.dEnd;
+  }
+}
+
+async function scanTracks(mf, start, end, ctx) {
+  var sz = end - start;
+  if (sz > 0 && sz <= CHUNK) await mf.ensure(start, sz);
+  var off = start;
+  while (off < end) {
+    if (!mf.has(off, 12)) await mf.load(off);
+    var h = hdr(mf, off, end);
+    if (h.id === ID.TrackEntry) await scanTrackEntry(mf, h.dStart, h.dEnd, ctx);
+    off = h.dEnd;
+  }
+}
+
+async function scanTrackEntry(mf, start, end, ctx) {
+  var sz = end - start;
+  if (sz > 0 && sz <= CHUNK) await mf.ensure(start, sz);
+  var t = { trackNum:0, trackType:0, name:'', lang:'und', codecID:'', codecPrivate:null, isDefault:false, isForced:false, blocks:[] };
+  var off = start;
+  while (off < end) {
+    if (!mf.has(off, 12)) await mf.load(off);
+    var h = hdr(mf, off, end);
+    if (h.elemSz > 0 && h.elemSz <= CHUNK) await mf.ensure(h.dStart, h.elemSz);
+    switch (h.id) {
+      case ID.TrackNumber:   t.trackNum   = mf.readUInt(h.dStart, h.elemSz); break;
+      case ID.TrackType:     t.trackType  = mf.readUInt(h.dStart, h.elemSz); break;
+      case ID.FlagDefault:   t.isDefault  = !!mf.readUInt(h.dStart, h.elemSz); break;
+      case ID.FlagForced:    t.isForced   = !!mf.readUInt(h.dStart, h.elemSz); break;
+      case ID.Name:          t.name       = mf.readStr(h.dStart, h.elemSz).replace(/\0/g,'').trim(); break;
+      case ID.Language:      if (!t._bcp47) t.lang = mf.readStr(h.dStart, h.elemSz).replace(/\0/g,'').trim() || 'und'; break;
+      case ID.LanguageBCP47: t.lang = mf.readStr(h.dStart, h.elemSz).replace(/\0/g,'').trim() || 'und'; t._bcp47 = true; break;
+      case ID.CodecID:       t.codecID    = mf.readStr(h.dStart, h.elemSz).replace(/\0/g,'').trim(); break;
+      case ID.CodecPrivate:  if (h.elemSz > 0 && h.elemSz <= 65536) t.codecPrivate = mf.readBytes(h.dStart, h.elemSz); break;
+    }
+    off = h.dEnd;
+  }
+  ctx.tracks.set(t.trackNum, t);
+}
+
+async function scanCluster(mf, start, end, ctx) {
+  var off = start;
+  while (off < end && off < mf.size) {
+    if (!mf.has(off, 12)) await mf.load(off);
+    var h = hdr(mf, off, end);
+    if (h.id === ID.Timecode) {
+      await mf.ensure(h.dStart, h.elemSz);
+      ctx.clusterTC = mf.readUInt(h.dStart, h.elemSz);
+    } else if (h.id === ID.BlockGroup) {
+      await scanCluster(mf, h.dStart, h.dEnd, ctx);
+    } else if (h.id === ID.SimpleBlock || h.id === ID.Block) {
+      if (!mf.has(h.dStart, 8)) await mf.load(h.dStart);
+      await processBlock(mf, h.dStart, h.elemSz, ctx);
+    }
+    off = h.dEnd;
+  }
+}
+
+async function processBlock(mf, dStart, sz, ctx) {
+  if (sz < 4) return;
+  var tnR = mf.readVINT(dStart);
+  var trackNum = Number(tnR.val);
+  var track = ctx.tracks.get(trackNum);
+  if (!track || !track.isText) return;
+
+  if (!mf.has(dStart + tnR.w, 3)) await mf.load(dStart + tnR.w);
+  var relTC  = mf.readInt16(dStart + tnR.w);
+  var flags  = mf._view.getUint8(mf.r(dStart + tnR.w + 2));
+  if ((flags >> 1) & 0x3) return;
+
+  var textOff = dStart + tnR.w + 3;
+  var textSz  = sz - tnR.w - 3;
+  if (textSz <= 0) return;
+
+  if (!mf.has(textOff, textSz)) await mf.load(textOff);
+  var msTime = Math.round((ctx.clusterTC + relTC) * ctx.tcScale / 1000000);
+  var bytes  = mf.readBytes(textOff, textSz);
+  var text   = new TextDecoder('utf-8', { fatal: false }).decode(bytes).replace(/\0/g,'').trim();
+  if (text) track.blocks.push({ msTime: msTime, text: text });
+}
+
+function tick() { return new Promise(function(r){ setTimeout(r, 0); }); }
+
+// ── Time formatters ──────────────────────────────────────────────────
+function pad2(n) { return String(n).padStart(2,'0'); }
+function pad3(n) { return String(n).padStart(3,'0'); }
+function msToSRT(ms) {
+  if (ms < 0) ms = 0;
+  var h = Math.floor(ms/3600000); ms %= 3600000;
+  var m = Math.floor(ms/60000);   ms %= 60000;
+  var s = Math.floor(ms/1000);
+  return pad2(h)+':'+pad2(m)+':'+pad2(s)+','+pad3(ms%1000);
+}
+function msToASS(ms) {
+  if (ms < 0) ms = 0;
+  var h = Math.floor(ms/3600000); ms %= 3600000;
+  var m = Math.floor(ms/60000);   ms %= 60000;
+  var s = Math.floor(ms/1000);
+  return h+':'+pad2(m)+':'+pad2(s)+'.'+pad2(Math.floor((ms%1000)/10));
+}
+function msToVTT(ms) {
+  if (ms < 0) ms = 0;
+  var h = Math.floor(ms/3600000); ms %= 3600000;
+  var m = Math.floor(ms/60000);   ms %= 60000;
+  var s = Math.floor(ms/1000);
+  return pad2(h)+':'+pad2(m)+':'+pad2(s)+'.'+pad3(ms%1000);
+}
+
+function dedup(blocks) {
+  var sorted = blocks.slice().sort(function(a,b){ return a.msTime - b.msTime; });
+  if (!sorted.length) return sorted;
+  var out = [sorted[0]];
+  for (var i = 1; i < sorted.length; i++) {
+    var p = out[out.length-1];
+    if (sorted[i].msTime === p.msTime && sorted[i].text === p.text) continue;
+    out.push(sorted[i]);
+  }
+  return out;
+}
+function buildSRT(blocks) {
+  var d = dedup(blocks), s = '\uFEFF';
+  for (var i = 0; i < d.length; i++) {
+    var b = d[i], end = i < d.length-1 ? Math.min(d[i+1].msTime, b.msTime+8000) : b.msTime+4000;
+    s += (i+1)+'\n'+msToSRT(b.msTime)+' --> '+msToSRT(Math.max(b.msTime+100,end))+'\n'+b.text+'\n\n';
+  }
+  return s;
+}
+function buildASS(track) {
+  var d = dedup(track.blocks), header = '';
+  if (track.codecPrivate) {
+    try { header = new TextDecoder('utf-8',{fatal:false}).decode(track.codecPrivate); } catch(e) {}
+  }
+  if (!header.trim()) {
+    header = '[Script Info]\nScriptType: v4.00+\nWrapStyle: 0\n\n'
+           + '[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n'
+           + 'Style: Default,Arial,20,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,2,2,10,10,10,1\n\n'
+           + '[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n';
+  }
+  var out = header.trimEnd() + '\n';
+  for (var i = 0; i < d.length; i++) {
+    var b = d[i], end = i < d.length-1 ? Math.min(d[i+1].msTime, b.msTime+8000) : b.msTime+4000;
+    if (b.text.startsWith('Dialogue:')) out += b.text + '\n';
+    else out += 'Dialogue: 0,'+msToASS(b.msTime)+','+msToASS(Math.max(b.msTime+100,end))+',Default,,0,0,0,,'+b.text+'\n';
+  }
+  return out;
+}
+function buildVTT(blocks) {
+  var d = dedup(blocks), s = 'WEBVTT\n\n';
+  for (var i = 0; i < d.length; i++) {
+    var b = d[i], end = i < d.length-1 ? Math.min(d[i+1].msTime, b.msTime+8000) : b.msTime+4000;
+    s += msToVTT(b.msTime)+' --> '+msToVTT(Math.max(b.msTime+100,end))+'\n'+b.text+'\n\n';
+  }
+  return s;
+}
+function buildContent(track) {
+  var id = track.codecID.toUpperCase();
+  if (id.indexOf('ASS') >= 0 || id === 'S_SSA' || id === 'S_TEXT/SSA') return buildASS(track);
+  if (id.indexOf('VTT') >= 0) return buildVTT(track.blocks);
+  return buildSRT(track.blocks);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatBytes(b) {
+  if (b < 1024) return b+' B';
+  if (b < 1048576) return (b/1024).toFixed(1)+' KB';
+  if (b < 1073741824) return (b/1048576).toFixed(1)+' MB';
+  return (b/1073741824).toFixed(2)+' GB';
+}
+function badgeCls(label) {
+  var l = label.toLowerCase();
+  if (l === 'srt') return 'tag-srt';
+  if (l === 'ass') return 'tag-ass';
+  if (l === 'ssa') return 'tag-ssa';
+  if (l === 'vtt') return 'tag-vtt';
+  if (l === 'pgs' || l === 'vobsub' || l === 'dvbsub') return 'tag-pgs';
+  return 'tag-def';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  Multi-File State & Queue Management
+// ═══════════════════════════════════════════════════════════════════
+
+let videoItems = []; // Array of { id, file, videoBase, status, progressPct, progressLabel, tracks, error }
+let nextId = 1;
+let isProcessingQueue = false;
+
+function addFiles(files) {
+  if (!files || !files.length) return;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    videoItems.push({
+      id: nextId++,
+      file: f,
+      videoBase: f.name.replace(/\.[^.]+$/, ''),
+      status: 'pending', // 'pending' | 'processing' | 'done' | 'error'
+      progressPct: 0,
+      progressLabel: 'Pending…',
+      tracks: [],
+      error: null
+    });
+  }
+  renderVideosList();
+  processQueue();
+}
+
+async function processQueue() {
+  if (isProcessingQueue) return;
+  isProcessingQueue = true;
+
+  while (true) {
+    const item = videoItems.find(v => v.status === 'pending');
+    if (!item) break;
+
+    item.status = 'processing';
+    item.progressPct = 5;
+    item.progressLabel = 'Starting…';
+    renderVideoItem(item.id);
+
+    try {
+      const parsedTracks = await parseMKVFile(item.file, (label, pct) => {
+        item.progressLabel = label;
+        item.progressPct = pct;
+        updateVideoProgress(item.id);
+      });
+      item.tracks = parsedTracks;
+      item.status = 'done';
+      item.progressPct = 100;
+      item.progressLabel = 'Completed';
+    } catch (err) {
+      console.error('File error:', item.file.name, err);
+      item.status = 'error';
+      item.error = err.message || 'Failed to read file';
+    }
+    renderVideoItem(item.id);
+    updateGlobalHeader();
+  }
+
+  isProcessingQueue = false;
+  updateGlobalHeader();
+}
+
+function removeVideoItem(id) {
+  videoItems = videoItems.filter(v => v.id !== id);
+  renderVideosList();
+}
+
+function clearAllVideos() {
+  videoItems = [];
+  renderVideosList();
+}
+
+function renderVideosList() {
+  const card = document.getElementById('videosCard');
+  const list = document.getElementById('videosList');
+
+  if (videoItems.length === 0) {
+    card.style.display = 'none';
+    list.innerHTML = '';
+    return;
+  }
+
+  card.style.display = '';
+  list.innerHTML = '';
+
+  videoItems.forEach(item => {
+    const vEl = document.createElement('div');
+    vEl.className = 'video-card expanded';
+    vEl.id = `video-card-${item.id}`;
+    vEl.innerHTML = createVideoItemHTML(item);
+    list.appendChild(vEl);
+  });
+
+  updateGlobalHeader();
+}
+
+function createVideoItemHTML(item) {
+  let statusBadge = '';
+  if (item.status === 'pending') {
+    statusBadge = `<span class="video-status-tag status-pending">Pending</span>`;
+  } else if (item.status === 'processing') {
+    statusBadge = `<span class="video-status-tag status-processing">Processing ${Math.round(item.progressPct)}%</span>`;
+  } else if (item.status === 'done') {
+    const textCnt = item.tracks.filter(t => t.isText).length;
+    statusBadge = `<span class="video-status-tag status-done">✓ ${textCnt} Subtitles</span>`;
+  } else if (item.status === 'error') {
+    statusBadge = `<span class="video-status-tag status-error">❌ Error</span>`;
+  }
+
+  const hasDownloadableTracks = item.tracks.some(t => t.isText && t.blocks.length > 0);
+
+  let progressHTML = '';
+  if (item.status === 'processing') {
+    progressHTML = `
+      <div class="video-progress-container">
+        <div class="video-progress-bar">
+          <div class="video-progress-fill" id="v-fill-${item.id}" style="width: ${item.progressPct}%"></div>
+        </div>
+        <div class="video-progress-label">
+          <span id="v-label-${item.id}">${esc(item.progressLabel)}</span>
+          <span id="v-pct-${item.id}">${Math.round(item.progressPct)}%</span>
+        </div>
+      </div>
+    `;
+  }
+
+  let tracksHTML = '';
+  if (item.status === 'done') {
+    if (!item.tracks.length) {
+      tracksHTML = `<div class="empty-state">No subtitle tracks found in this video.</div>`;
+    } else {
+      tracksHTML = item.tracks.map(t => {
+        const info = t.codec;
+        const blockCnt = t.blocks.length;
+        const displayName = t.name || (`Track ` + t.trackNum);
+
+        const badges = [
+          `<span class="tag ${badgeCls(info.label)}">${info.label}</span>`,
+          t.isDefault ? `<span class="tag tag-def">Default</span>` : '',
+          t.isForced  ? `<span class="tag tag-def">Forced</span>`   : '',
+        ].filter(Boolean).join(' ');
+
+        const meta = [`#${t.trackNum}`, langLabel(t.lang), t.isText ? blockCnt + ' lines' : 'Image-based'].join(' · ');
+
+        const actions = (t.isText && blockCnt > 0)
+          ? `<button class="btn-preview" onclick="previewTrackInVideo(${item.id}, ${t.trackNum})">👁 Preview</button>
+             <button class="btn-dl" onclick="dlTrackInVideo(${item.id}, ${t.trackNum})">⬇ Download</button>`
+          : t.isText
+          ? `<span style="font-size:11px;color:var(--muted);">0 lines</span>`
+          : `<button disabled title="Image-based">⬇ Download</button>`;
+
+        return `
+          <div class="track-item">
+            <div class="track-num">#${t.trackNum}</div>
+            <div class="track-info">
+              <div class="track-name">${esc(displayName)} ${badges}</div>
+              <div class="track-meta">${meta}</div>
+              ${!t.isText ? '<div class="bitmap-notice">PGS/VobSub image data — cannot be extracted as text in browser.</div>' : ''}
+            </div>
+            <div class="track-actions">${actions}</div>
+          </div>
+        `;
+      }).join('');
+    }
+  } else if (item.status === 'error') {
+    tracksHTML = `<div class="empty-state" style="color:var(--danger);">Error: ${esc(item.error)}</div>`;
+  }
+
+  return `
+    <div class="video-header">
+      <div class="video-main-info">
+        <span class="video-icon">🎬</span>
+        <div class="video-titles">
+          <div class="video-name" title="${esc(item.file.name)}">${esc(item.file.name)}</div>
+          <div class="video-sub-info">
+            <span>${formatBytes(item.file.size)}</span>
+            ${statusBadge}
+          </div>
+        </div>
+      </div>
+      <div class="video-actions">
+        ${hasDownloadableTracks ? `<button class="btn-dl" onclick="downloadVideoTracks(${item.id})">⬇ Download Subtitles for Video</button>` : ''}
+        <button class="btn-danger" onclick="removeVideoItem(${item.id})" title="Remove">✕</button>
+      </div>
+    </div>
+    ${progressHTML}
+    ${(item.status === 'done' || item.status === 'error') ? `<div class="video-tracks-list">${tracksHTML}</div>` : ''}
+  `;
+}
+
+function renderVideoItem(id) {
+  const item = videoItems.find(v => v.id === id);
+  if (!item) return;
+  const card = document.getElementById(`video-card-${id}`);
+  if (card) {
+    card.innerHTML = createVideoItemHTML(item);
+  }
+}
+
+function updateVideoProgress(id) {
+  const item = videoItems.find(v => v.id === id);
+  if (!item) return;
+  const fill = document.getElementById(`v-fill-${id}`);
+  const label = document.getElementById(`v-label-${id}`);
+  const pct = document.getElementById(`v-pct-${id}`);
+  if (fill) fill.style.width = `${item.progressPct}%`;
+  if (label) label.textContent = item.progressLabel;
+  if (pct) pct.textContent = `${Math.round(item.progressPct)}%`;
+}
+
+function updateGlobalHeader() {
+  const titleEl = document.getElementById('videosCardTitle');
+  const btnAll = document.getElementById('btnDownloadAllGlobal');
+
+  const total = videoItems.length;
+  const doneCnt = videoItems.filter(v => v.status === 'done').length;
+  titleEl.textContent = `Uploaded Videos (${doneCnt}/${total})`;
+
+  const hasAnyTrack = videoItems.some(v => v.tracks.some(t => t.isText && t.blocks.length > 0));
+  btnAll.disabled = !hasAnyTrack;
+}
+
+// ── Preview & Download handlers for Multi-Video ───────────────────────
+
+function previewTrackInVideo(videoId, trackNum) {
+  const v = videoItems.find(item => item.id === videoId);
+  if (!v) return;
+  const t = v.tracks.find(tr => tr.trackNum === trackNum);
+  if (!t) return;
+
+  const content = buildContent(t);
+  document.getElementById('modalTitle').textContent = `Preview — ${v.videoBase} · ${t.name || ('Track ' + t.trackNum)} (${t.codec.label})`;
+  document.getElementById('modalBody').textContent = content.slice(0, 12000) + (content.length > 12000 ? '\n\n[… remaining text truncated …]' : '');
+  document.getElementById('previewModal').classList.add('open');
+}
+
+function closeModalBackdrop(e) {
+  if (e.target.id === 'previewModal') document.getElementById('previewModal').classList.remove('open');
+}
+
+function dlTrackInVideo(videoId, trackNum) {
+  const v = videoItems.find(item => item.id === videoId);
+  if (!v) return;
+  const t = v.tracks.find(tr => tr.trackNum === trackNum);
+  if (!t || !t.isText || !t.blocks.length) return;
+
+  const label = (t.name || ('track' + t.trackNum)).replace(/[^\w\- ]/g, '').trim();
+  const fileName = `${v.videoBase}.${t.lang}.${label}.${t.codec.ext}`;
+  triggerDownload(buildContent(t), fileName);
+}
+
+function downloadVideoTracks(videoId) {
+  const v = videoItems.find(item => item.id === videoId);
+  if (!v) return;
+  let delay = 0;
+  v.tracks.forEach(t => {
+    if (t.isText && t.blocks.length > 0) {
+      setTimeout(() => dlTrackInVideo(videoId, t.trackNum), delay);
+      delay += 250;
+    }
+  });
+}
+
+function downloadAllGlobal() {
+  let delay = 0;
+  videoItems.forEach(v => {
+    v.tracks.forEach(t => {
+      if (t.isText && t.blocks.length > 0) {
+        setTimeout(() => dlTrackInVideo(v.id, t.trackNum), delay);
+        delay += 250;
+      }
+    });
+  });
+}
+
+function triggerDownload(text, fileName) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── Drag & Drop / Input Wiring ────────────────────────────────────────
+
+document.getElementById('videoFile').addEventListener('change', function() {
+  if (this.files && this.files.length) {
+    addFiles(Array.from(this.files));
+    this.value = ''; // Reset input so same files can be re-added if desired
+  }
+});
+
+const dz = document.getElementById('videoDz');
+dz.addEventListener('dragover',  e => { e.preventDefault(); e.stopPropagation(); dz.classList.add('hover'); });
+dz.addEventListener('dragleave', e => { e.preventDefault(); e.stopPropagation(); dz.classList.remove('hover'); });
+dz.addEventListener('drop', e => {
+  e.preventDefault(); e.stopPropagation(); dz.classList.remove('hover');
+  if (e.dataTransfer.files && e.dataTransfer.files.length) {
+    addFiles(Array.from(e.dataTransfer.files));
+  }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('previewModal').classList.remove('open');
+});
+</script>
+</body>
+</html>

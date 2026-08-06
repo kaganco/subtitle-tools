@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UTF-8 Converter — Subtitle Tools</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2e2e2e;
+      --text: #e8e8e8;
+      --muted: #888;
+      --accent: #c8c8c8;
+      --success: #4caf50;
+      --warn: #e0a840;
+      --danger: #e05050;
+      --radius: 6px;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 60px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    header h1 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+    }
+
+    header p {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .tool-nav {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+    }
+
+    .tool-nav a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+
+    .tool-nav a:hover {
+      color: var(--text);
+      border-color: #555;
+      background: #1f1f1f;
+    }
+
+    .tool-nav a.active {
+      color: var(--accent);
+      border-color: #444;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 660px;
+      margin-bottom: 16px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 28px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      text-align: center;
+      user-select: none;
+      min-height: 110px;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.hover {
+      border-color: #666;
+      background: #1f1f1f;
+    }
+
+    .drop-zone.loaded {
+      border-color: #3a5a3a;
+      background: #161e16;
+    }
+
+    .drop-zone.loaded:hover {
+      border-color: #4caf50;
+      background: #192019;
+    }
+
+    .drop-zone .dz-icon {
+      font-size: 26px;
+      line-height: 1;
+      opacity: 0.5;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .drop-zone:hover .dz-icon,
+    .drop-zone.hover .dz-icon {
+      opacity: 0.9;
+      transform: translateY(-2px);
+    }
+
+    .drop-zone.loaded .dz-icon {
+      opacity: 0.8;
+    }
+
+    .drop-zone .dz-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .drop-zone .dz-hint {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .drop-zone .dz-filename {
+      font-size: 12px;
+      color: var(--success);
+      font-weight: 500;
+      width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      padding: 0 4px;
+    }
+
+    input[type="file"] { display: none; }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      padding: 7px 14px;
+      transition: background 0.15s, border-color 0.15s;
+      white-space: nowrap;
+    }
+
+    button:hover:not(:disabled) { background: #252525; border-color: #555; }
+    button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    button.primary {
+      border-color: #555;
+      color: var(--accent);
+    }
+
+    button.download-btn {
+      border-color: #555;
+      color: var(--success);
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    .actions-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .info-box {
+      background: #161616;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .info-box .val { color: var(--text); font-weight: 500; font-family: monospace; }
+    .info-box .label-tag { color: var(--warn); font-weight: 600; }
+
+    .status {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status.ok { color: var(--success); }
+    .status.err { color: var(--danger); }
+
+    /* Encoding badge */
+    .enc-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+    .enc-badge.utf8 {
+      background: #112218;
+      color: #4caf50;
+      border: 1px solid #1e4028;
+    }
+    .enc-badge.cyrillic {
+      background: #1a1020;
+      color: #c090f0;
+      border: 1px solid #3a2060;
+    }
+    .enc-badge.turkish {
+      background: #201a10;
+      color: #e0a840;
+      border: 1px solid #3a2c0a;
+    }
+    .enc-badge.iso {
+      background: #1a1a24;
+      color: #a080e0;
+      border: 1px solid #2a1850;
+    }
+    .enc-badge.latin {
+      background: #0e1e1e;
+      color: #40c0b0;
+      border: 1px solid #163030;
+    }
+    .enc-badge.ceur {
+      background: #101a20;
+      color: #60a5fa;
+      border: 1px solid #1e3050;
+    }
+    .enc-badge.greek {
+      background: #1a1810;
+      color: #d4b870;
+      border: 1px solid #3a3010;
+    }
+
+    /* Manual encoding selector */
+    .encoding-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+
+    .encoding-row label {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    select.enc-select {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.15s;
+      cursor: pointer;
+      min-width: 200px;
+    }
+    select.enc-select:focus { border-color: #666; }
+    select.enc-select option { background: #1a1a1a; color: var(--text); }
+
+    .enc-override-hint {
+      font-size: 11px;
+      color: var(--warn);
+      margin-top: 4px;
+    }
+
+    /* Preview diff */
+    .preview-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .preview-panel {
+      background: #111;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .preview-panel-header {
+      padding: 8px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      background: #161616;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preview-panel-body {
+      padding: 10px 12px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 11px;
+      line-height: 1.7;
+      color: var(--text);
+      max-height: 240px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      scrollbar-width: thin;
+      scrollbar-color: #333 transparent;
+    }
+
+    @media (max-width: 540px) {
+      .preview-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="tool-nav">
+  <a href="index.html">✂ Subtitle Merger</a>
+  <a href="extract.html">🎬 Extract Subtitles</a>
+  <a href="convert.html" class="active">🔤 UTF-8 Converter</a>
+</div>
+
+<header>
+  <h1>UTF-8 Converter</h1>
+  <p>Converts .srt files with broken character encoding issues into clean UTF-8 format.</p>
+</header>
+
+<!-- File Upload -->
+<div class="card">
+  <div class="card-title">Subtitle File</div>
+
+  <div class="drop-zone" id="dz" onclick="document.getElementById('fileInput').click()">
+    <div class="dz-icon">📄</div>
+    <div class="dz-label" id="dzLabel">Upload SRT File</div>
+    <div class="dz-hint" id="dzHint">Drag &amp; drop or click</div>
+    <div class="dz-filename" id="dzName" style="display:none;"></div>
+    <input type="file" id="fileInput" accept=".srt" />
+  </div>
+</div>
+
+<!-- Detection Info -->
+<div class="card" id="detectionCard" style="display:none;">
+  <div class="card-title">Encoding Detection</div>
+
+  <div class="info-box" id="detectionInfo"></div>
+
+  <!-- Manual Encoding Selection -->
+  <div class="encoding-row">
+    <label for="encSelect">If misdetected, select manually:</label>
+    <select class="enc-select" id="encSelect" onchange="onManualEncodingChange()">
+      <option value="">— Automatic Detection —</option>
+      <optgroup label="Cyrillic">
+        <option value="windows-1251">Windows-1251 (Russian, Bulgarian, Serbian)</option>
+        <option value="koi8-r">KOI8-R (Russian)</option>
+        <option value="iso-8859-5">ISO-8859-5 (Cyrillic)</option>
+        <option value="koi8-u">KOI8-U (Ukrainian)</option>
+      </optgroup>
+      <optgroup label="Turkish">
+        <option value="windows-1254">Windows-1254 (Turkish)</option>
+        <option value="iso-8859-9">ISO-8859-9 (Latin-5 Turkish)</option>
+      </optgroup>
+      <optgroup label="Western / Central European">
+        <option value="windows-1252">Windows-1252 (Western European)</option>
+        <option value="iso-8859-1">ISO-8859-1 (Latin-1)</option>
+        <option value="windows-1250">Windows-1250 (Central European)</option>
+        <option value="iso-8859-2">ISO-8859-2 (Latin-2)</option>
+        <option value="iso-8859-15">ISO-8859-15 (Latin-9)</option>
+      </optgroup>
+      <optgroup label="Greek">
+        <option value="windows-1253">Windows-1253 (Greek)</option>
+        <option value="iso-8859-7">ISO-8859-7 (Greek)</option>
+      </optgroup>
+      <optgroup label="Arabic / Hebrew">
+        <option value="windows-1256">Windows-1256 (Arabic)</option>
+        <option value="windows-1255">Windows-1255 (Hebrew)</option>
+      </optgroup>
+      <optgroup label="Other">
+        <option value="windows-874">Windows-874 (Thai)</option>
+        <option value="windows-1258">Windows-1258 (Vietnamese)</option>
+        <option value="iso-8859-4">ISO-8859-4 (Baltic)</option>
+      </optgroup>
+    </select>
+  </div>
+  <div class="enc-override-hint" id="overrideHint" style="display:none;"></div>
+
+  <hr class="divider" />
+
+  <div class="actions-row">
+    <button class="download-btn" id="btnDownload" onclick="doDownload()">↓ Download as UTF-8</button>
+    <button class="primary" id="btnCopy" onclick="doCopy()">📋 Copy to Clipboard</button>
+  </div>
+
+  <div id="statusMsg" class="status"></div>
+</div>
+
+<!-- Preview -->
+<div class="card" id="previewCard" style="display:none;">
+  <div class="card-title">
+    Preview
+    <span style="color:#444;font-weight:400;text-transform:none;font-size:11px;letter-spacing:0;"> — first 20 lines</span>
+  </div>
+
+  <div class="preview-container">
+    <div class="preview-panel">
+      <div class="preview-panel-header">
+        <span style="color:var(--danger);">●</span> Original (Corrupted)
+      </div>
+      <div class="preview-panel-body" id="previewOriginal"></div>
+    </div>
+    <div class="preview-panel">
+      <div class="preview-panel-header">
+        <span style="color:var(--success);">●</span> Fixed (UTF-8)
+      </div>
+      <div class="preview-panel-body" id="previewFixed"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Info -->
+<div class="card">
+  <div class="info-box">
+    <strong style="color:var(--text);">Supported encodings:</strong><br>
+    <span style="color:#c090f0;">Cyrillic:</span> Windows-1251, KOI8-R, KOI8-U, ISO-8859-5<br>
+    <span style="color:#e0a840;">Turkish:</span> Windows-1254, ISO-8859-9<br>
+    <span style="color:#40c0b0;">European:</span> Windows-1252, Windows-1250, ISO-8859-1, ISO-8859-2, ISO-8859-15<br>
+    <span style="color:#d4b870;">Other:</span> Windows-1253 (Greek), Windows-1255 (Hebrew), Windows-1256 (Arabic)<br>
+    If automatic detection is wrong, you can select the correct encoding from the dropdown menu.
+  </div>
+</div>
+
+<script>
+  // ── State ─────────────────────────────────────────────────────────────────
+  let rawBuffer = null;       // Original ArrayBuffer
+  let fileName = '';
+  let detectedEncoding = '';  // Auto-detected label
+  let activeEncoding = '';    // Currently used encoding (auto or manual)
+  let convertedText = '';     // Final UTF-8 text
+  let fileByteCount = 0;
+
+  // ── Encoding Detection (Score-Based) ─────────────────────────────────────
+  //
+  // Strategy: For single-byte encodings, we analyze the distribution of
+  // high bytes (> 0x7F) to distinguish script families:
+  //
+  // - Cyrillic (Win-1251): Letters А-я map to 0xC0-0xFF.
+  //   In Russian text, the MAJORITY of letter bytes are high bytes.
+  //   Lowercase а-я (0xE0-0xFF) dominates. ё=0xB8, Ё=0xA8 are unique markers.
+  //
+  // - Turkish (Win-1254): Only ğ,Ğ,ş,Ş,ı,İ are high bytes (0xD0,0xDD,0xDE,0xF0,0xFD,0xFE).
+  //   Most text is ASCII Latin. High bytes are sparse.
+  //
+  // Key insight: ratio of high bytes to total letter-like bytes.
+  //   Cyrillic > 0.4  |  Turkish < 0.15
+
+  function detectEncoding(bytes) {
+    // 1. Check BOM
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+      return 'UTF-8 (BOM)';
+    }
+    if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+      return 'UTF-16 LE';
+    }
+    if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+      return 'UTF-16 BE';
+    }
+
+    // 2. Scan byte statistics
+    let hasHighBytes = false;
+    let asciiLetters = 0;   // a-z, A-Z
+    let highBytes = 0;      // > 0x7F
+    let cyrRange = 0;       // 0xC0-0xFF (Cyrillic А-я in Win-1251)
+    let lowCyr = 0;         // 0xE0-0xFF (lowercase а-я)
+    let highCyr = 0;        // 0xC0-0xDF (uppercase А-Я)
+    let cyrExtra = 0;       // ё(0xB8) and Ё(0xA8) — unique to Cyrillic
+    let turkSpecific = 0;   // Turkish-unique positions: 0xD0,0xDD,0xDE,0xF0,0xFD,0xFE
+    let smartQuotes = 0;    // 0x80-0x9F range (Win-125x smart quotes/symbols)
+    let greekRange = 0;     // 0xB0-0xFE where Greek letters live in Win-1253
+
+    const TURK_SET = new Set([0xD0, 0xDD, 0xDE, 0xF0, 0xFD, 0xFE]);
+    const TURK_SHARED = new Set([0xC7, 0xD6, 0xDC, 0xE7, 0xF6, 0xFC]); // ç,ö,ü,Ç,Ö,Ü (shared with Latin)
+
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if ((b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A)) asciiLetters++;
+      if (b <= 0x7F) continue;
+
+      hasHighBytes = true;
+      highBytes++;
+
+      if (b >= 0xC0 && b <= 0xFF) cyrRange++;
+      if (b >= 0xE0 && b <= 0xFF) lowCyr++;
+      if (b >= 0xC0 && b <= 0xDF) highCyr++;
+      if (b === 0xB8 || b === 0xA8) cyrExtra++;
+      if (TURK_SET.has(b)) turkSpecific++;
+      if (b >= 0x80 && b <= 0x9F) smartQuotes++;
+      if (b >= 0xB0 && b <= 0xFE) greekRange++;
+    }
+
+    // Pure ASCII
+    if (!hasHighBytes) return 'ASCII (UTF-8 compatible)';
+
+    // 3. Try strict UTF-8 validation
+    const isValidUtf8 = checkUtf8(bytes);
+
+    if (isValidUtf8) {
+      // Double-check for false-positive UTF-8:
+      // Win-1254 Turkish bytes can sometimes form valid (but meaningless) UTF-8 sequences
+      const utf8Text = new TextDecoder('utf-8').decode(bytes);
+      // ð(U+00F0), þ(U+00FE), ý(U+00FD) etc. are Latin chars that appear when
+      // Win-1254 Turkish bytes are misread as UTF-8
+      const hasLatinMisread = /[ðþýÐÞÝ]/.test(utf8Text);
+      if (!hasLatinMisread) return 'UTF-8';
+    }
+
+    // 4. Score-based detection for single-byte encodings
+    const totalLetterish = asciiLetters + cyrRange;
+    const highByteRatio = cyrRange / (totalLetterish + 1);
+
+    // ── Cyrillic Detection ──
+    // In Cyrillic text: high bytes (0xC0-0xFF) are a LARGE portion of all characters
+    // because the entire alphabet lives in this range.
+    // In Russian specifically, lowercase (0xE0-0xFF) >> uppercase (0xC0-0xDF).
+    if (highByteRatio > 0.35 && highBytes > 10) {
+      // Strong Cyrillic signal
+      // Could be Win-1251, KOI8-R, or ISO-8859-5
+      // KOI8-R check: in KOI8-R, uppercase=0xE0-0xFF, lowercase=0xC0-0xDF (reversed from Win-1251)
+      // Natural text has more lowercase → in KOI8-R, 0xC0-0xDF would dominate
+      // In Win-1251, 0xE0-0xFF would dominate
+      if (highCyr > lowCyr * 1.5 && highBytes > 20) {
+        // More bytes in 0xC0-0xDF than 0xE0-0xFF → likely KOI8-R
+        return 'KOI8-R';
+      }
+      return 'Windows-1251';
+    }
+
+    // Explicit Cyrillic markers (ё, Ё)
+    if (cyrExtra > 0 && highByteRatio > 0.2) {
+      return 'Windows-1251';
+    }
+
+    // ── Turkish Detection ──
+    // In Turkish text: ASCII letters dominate, only special Turkish chars are high bytes
+    if (turkSpecific > 0 && asciiLetters > cyrRange * 2) {
+      return 'Windows-1254';
+    }
+
+    // Turkish shared chars (ç,ö,ü) without the unique Turkish ones
+    // could still be Turkish if ASCII dominates
+    let turkSharedCount = 0;
+    for (let i = 0; i < bytes.length; i++) {
+      if (TURK_SHARED.has(bytes[i])) turkSharedCount++;
+    }
+    if (turkSharedCount > 0 && turkSpecific > 0 && highByteRatio < 0.15) {
+      return 'Windows-1254';
+    }
+
+    // ── Greek Detection ──
+    // Win-1253 Greek letters are in 0xB1-0xFE range
+    if (greekRange > highBytes * 0.7 && highBytes > 10 && highByteRatio > 0.25) {
+      // Could be Greek — but also overlaps with Cyrillic range
+      // Greek-specific: 0xA1-0xAF has some unique Greek chars
+      let greekSpecific = 0;
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i];
+        if (b >= 0xA1 && b <= 0xAF) greekSpecific++;
+      }
+      if (greekSpecific > 0) return 'Windows-1253';
+    }
+
+    // ── Central European Detection ──
+    // Win-1250 uses 0xC0-0xFF for accented Latin chars (Polish, Czech, Hungarian etc.)
+    // Similar byte range to Win-1251 but the ratio of high bytes to ASCII would be lower
+    if (highByteRatio > 0.05 && highByteRatio < 0.35 && cyrRange > 0) {
+      // Moderate ratio: could be Central European where most text is ASCII
+      // but accented chars are frequent
+      if (smartQuotes > 0) return 'Windows-1250';
+      // Fallback to Western European
+      return 'Windows-1252';
+    }
+
+    // ── Fallback ──
+    if (smartQuotes > 0) return 'Windows-1252';
+    return 'ISO-8859-1';
+  }
+
+  function checkUtf8(bytes) {
+    let i = 0;
+    while (i < bytes.length) {
+      const b = bytes[i];
+      if (b <= 0x7F) { i++; continue; }
+
+      let seqLen = 0;
+      if      ((b & 0xE0) === 0xC0) seqLen = 2;
+      else if ((b & 0xF0) === 0xE0) seqLen = 3;
+      else if ((b & 0xF8) === 0xF0) seqLen = 4;
+      else return false;
+
+      if (i + seqLen > bytes.length) return false;
+
+      for (let j = 1; j < seqLen; j++) {
+        if ((bytes[i + j] & 0xC0) !== 0x80) return false;
+      }
+
+      // Overlong sequence checks
+      if (seqLen === 2 && (b & 0x1E) === 0) return false;
+      if (seqLen === 3 && b === 0xE0 && (bytes[i+1] & 0x20) === 0) return false;
+      if (seqLen === 4 && b === 0xF0 && (bytes[i+1] & 0x30) === 0) return false;
+
+      i += seqLen;
+    }
+    return true;
+  }
+
+  // ── Encoding name → TextDecoder name mapping ────────────────────────────
+  function decoderNameFor(encoding) {
+    const e = encoding.toLowerCase();
+    if (e.includes('utf-8') || e.includes('ascii'))  return 'utf-8';
+    if (e.includes('utf-16 le'))                      return 'utf-16le';
+    if (e.includes('utf-16 be'))                      return 'utf-16be';
+    if (e.includes('koi8-u'))                          return 'koi8-u';
+    if (e.includes('koi8'))                            return 'koi8-r';
+    if (e.includes('1251'))                            return 'windows-1251';
+    if (e.includes('1254'))                            return 'windows-1254';
+    if (e.includes('1252'))                            return 'windows-1252';
+    if (e.includes('1250'))                            return 'windows-1250';
+    if (e.includes('1253'))                            return 'windows-1253';
+    if (e.includes('1255'))                            return 'windows-1255';
+    if (e.includes('1256'))                            return 'windows-1256';
+    if (e.includes('1258'))                            return 'windows-1258';
+    if (e.includes('874'))                             return 'windows-874';
+    if (e.includes('8859-9'))                          return 'iso-8859-9';
+    if (e.includes('8859-1') && !e.includes('8859-15'))return 'iso-8859-1';
+    if (e.includes('8859-2'))                          return 'iso-8859-2';
+    if (e.includes('8859-4'))                          return 'iso-8859-4';
+    if (e.includes('8859-5'))                          return 'iso-8859-5';
+    if (e.includes('8859-7'))                          return 'iso-8859-7';
+    if (e.includes('8859-15'))                         return 'iso-8859-15';
+    return 'windows-1252'; // safe fallback
+  }
+
+  function encodingBadgeClass(encoding) {
+    const e = encoding.toLowerCase();
+    if (e.includes('utf') || e.includes('ascii')) return 'utf8';
+    if (e.includes('1251') || e.includes('koi8') || e.includes('8859-5')) return 'cyrillic';
+    if (e.includes('1254') || e.includes('8859-9')) return 'turkish';
+    if (e.includes('1250') || e.includes('8859-2')) return 'ceur';
+    if (e.includes('1253') || e.includes('8859-7')) return 'greek';
+    if (e.includes('8859')) return 'iso';
+    if (e.includes('1252')) return 'latin';
+    return 'latin';
+  }
+
+  function encodingDisplayName(decoderName) {
+    const map = {
+      'utf-8': 'UTF-8',
+      'utf-16le': 'UTF-16 LE',
+      'utf-16be': 'UTF-16 BE',
+      'windows-1251': 'Windows-1251 (Cyrillic)',
+      'koi8-r': 'KOI8-R (Russian)',
+      'koi8-u': 'KOI8-U (Ukrainian)',
+      'iso-8859-5': 'ISO-8859-5 (Cyrillic)',
+      'windows-1254': 'Windows-1254 (Turkish)',
+      'iso-8859-9': 'ISO-8859-9 (Turkish)',
+      'windows-1252': 'Windows-1252 (Western European)',
+      'windows-1250': 'Windows-1250 (Central European)',
+      'iso-8859-1': 'ISO-8859-1 (Latin-1)',
+      'iso-8859-2': 'ISO-8859-2 (Latin-2)',
+      'iso-8859-15': 'ISO-8859-15 (Latin-9)',
+      'windows-1253': 'Windows-1253 (Greek)',
+      'iso-8859-7': 'ISO-8859-7 (Greek)',
+      'windows-1255': 'Windows-1255 (Hebrew)',
+      'windows-1256': 'Windows-1256 (Arabic)',
+      'windows-1258': 'Windows-1258 (Vietnamese)',
+      'windows-874': 'Windows-874 (Thai)',
+      'iso-8859-4': 'ISO-8859-4 (Baltic)',
+    };
+    return map[decoderName] || decoderName;
+  }
+
+  // ── Decode with a given encoding ──────────────────────────────────────────
+  function decodeWithEncoding(encodingLabel) {
+    if (!rawBuffer) return;
+
+    const decoderName = decoderNameFor(encodingLabel);
+
+    // Decode with selected encoding
+    const decoded = new TextDecoder(decoderName, { fatal: false }).decode(rawBuffer);
+
+    // Clean up: remove BOM, normalize line endings
+    convertedText = decoded
+      .replace(/^\uFEFF/, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n');
+
+    // Prepend UTF-8 BOM for output
+    convertedText = '\uFEFF' + convertedText;
+
+    // Decode as raw UTF-8 for the "broken" preview
+    const rawUtf8 = new TextDecoder('utf-8', { fatal: false }).decode(rawBuffer)
+      .replace(/^\uFEFF/, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n');
+
+    activeEncoding = encodingLabel;
+
+    // Update UI
+    showDetection(fileByteCount);
+    showPreview(rawUtf8, convertedText.replace(/^\uFEFF/, ''));
+  }
+
+  // ── File Loading ──────────────────────────────────────────────────────────
+  function loadFile(file) {
+    fileName = file.name;
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+      rawBuffer = e.target.result;
+      const bytes = new Uint8Array(rawBuffer);
+      fileByteCount = bytes.length;
+
+      // Reset manual selector
+      document.getElementById('encSelect').value = '';
+      document.getElementById('overrideHint').style.display = 'none';
+
+      // Auto-detect and decode
+      detectedEncoding = detectEncoding(bytes);
+      decodeWithEncoding(detectedEncoding);
+
+      // Mark drop zone
+      const dz = document.getElementById('dz');
+      dz.classList.add('loaded');
+      document.getElementById('dzHint').style.display = 'none';
+      document.getElementById('dzLabel').textContent = 'File Loaded';
+      const nameEl = document.getElementById('dzName');
+      nameEl.textContent = file.name;
+      nameEl.style.display = '';
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ── Manual Encoding Override ──────────────────────────────────────────────
+  function onManualEncodingChange() {
+    const select = document.getElementById('encSelect');
+    const hint = document.getElementById('overrideHint');
+
+    if (!rawBuffer) return;
+
+    if (select.value === '') {
+      // Back to auto
+      hint.style.display = 'none';
+      decodeWithEncoding(detectedEncoding);
+      setStatus('', '');
+    } else {
+      const manualName = encodingDisplayName(select.value);
+      hint.textContent = `⚠ Manual selection: ${manualName}`;
+      hint.style.display = '';
+      decodeWithEncoding(select.value);
+      setStatus('', '');
+    }
+  }
+
+  // ── UI Updates ────────────────────────────────────────────────────────────
+  function showDetection(byteCount) {
+    const card = document.getElementById('detectionCard');
+    const info = document.getElementById('detectionInfo');
+
+    const isAlreadyUtf8 = activeEncoding.toLowerCase().includes('utf-8') ||
+                           activeEncoding.toLowerCase().includes('ascii');
+
+    const isManual = document.getElementById('encSelect').value !== '';
+    const displayLabel = isManual
+      ? encodingDisplayName(document.getElementById('encSelect').value)
+      : detectedEncoding;
+
+    const badgeClass = encodingBadgeClass(displayLabel);
+
+    info.innerHTML = `
+      File: <span class="val">${esc(fileName)}</span> (${formatBytes(byteCount)})<br>
+      ${isManual ? 'Selected' : 'Detected'} encoding: <span class="enc-badge ${badgeClass}">${displayLabel}</span><br>
+      ${isAlreadyUtf8
+        ? '<span style="color:var(--success);">✓ File is already in UTF-8 format.</span>'
+        : `Conversion: <span class="label-tag">${displayLabel}</span> → <span style="color:var(--success);font-weight:600;">UTF-8 (BOM)</span>`
+      }
+    `;
+
+    card.style.display = '';
+    setStatus('', '');
+  }
+
+  function showPreview(rawText, fixedText) {
+    const card = document.getElementById('previewCard');
+
+    const rawLines = rawText.split('\n');
+    const fixedLines = fixedText.split('\n');
+    const previewCount = Math.min(20, rawLines.length);
+
+    const rawPreview = rawLines.slice(0, previewCount).join('\n');
+    const fixedPreview = fixedLines.slice(0, previewCount).join('\n');
+
+    document.getElementById('previewOriginal').textContent = rawPreview;
+    document.getElementById('previewFixed').textContent = fixedPreview;
+
+    card.style.display = '';
+  }
+
+  // ── Download ──────────────────────────────────────────────────────────────
+  function doDownload() {
+    if (!convertedText) return;
+
+    const baseName = fileName.replace(/\.srt$/i, '');
+    const outName = `${baseName}-utf8.srt`;
+
+    const blob = new Blob([convertedText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = outName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setStatus('✓ Downloaded as UTF-8.', 'ok');
+  }
+
+  function doCopy() {
+    if (!convertedText) return;
+    const textWithoutBom = convertedText.replace(/^\uFEFF/, '');
+    navigator.clipboard.writeText(textWithoutBom).then(() => {
+      setStatus('✓ Copied to clipboard.', 'ok');
+    }).catch(() => {
+      setStatus('Failed to copy to clipboard.', 'err');
+    });
+  }
+
+  // ── Drag & Drop / Input Wiring ────────────────────────────────────────────
+  document.getElementById('fileInput').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    loadFile(file);
+  });
+
+  const dz = document.getElementById('dz');
+  dz.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.add('hover');
+  });
+  dz.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.remove('hover');
+  });
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dz.classList.remove('hover');
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.srt')) {
+      alert('Please drop a file with a .srt extension.');
+      return;
+    }
+    loadFile(file);
+  });
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function setStatus(msg, cls) {
+    const el = document.getElementById('statusMsg');
+    el.textContent = msg;
+    el.className = `status ${cls}`;
+  }
+
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function formatBytes(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(1) + ' MB';
+  }
+</script>
+
+</body>
+</html>
