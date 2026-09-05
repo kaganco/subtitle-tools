@@ -500,34 +500,153 @@
   function pad2(n) { return String(n).padStart(2, '0'); }
   function pad3(n) { return String(n).padStart(3, '0'); }
 
+  // ── Encoding Detection (Score-Based) ─────────────────────────────────────
+  // Ported from convert.html — detects Cyrillic, Turkish, Greek, Latin etc.
+  function detectEncoding(bytes) {
+    // 1. Check BOM
+    if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+      return 'UTF-8 (BOM)';
+    }
+    if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) return 'UTF-16 LE';
+    if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) return 'UTF-16 BE';
+
+    // 2. Scan byte statistics
+    let hasHighBytes = false;
+    let asciiLetters = 0;
+    let highBytes    = 0;
+    let cyrRange     = 0;
+    let lowCyr       = 0;
+    let highCyr      = 0;
+    let cyrExtra     = 0;
+    let turkSpecific = 0;
+    let smartQuotes  = 0;
+    let greekRange   = 0;
+
+    const TURK_SET    = new Set([0xD0, 0xDD, 0xDE, 0xF0, 0xFD, 0xFE]);
+    const TURK_SHARED = new Set([0xC7, 0xD6, 0xDC, 0xE7, 0xF6, 0xFC]);
+
+    for (let i = 0; i < bytes.length; i++) {
+      const b = bytes[i];
+      if ((b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A)) asciiLetters++;
+      if (b <= 0x7F) continue;
+      hasHighBytes = true;
+      highBytes++;
+      if (b >= 0xC0 && b <= 0xFF) cyrRange++;
+      if (b >= 0xE0 && b <= 0xFF) lowCyr++;
+      if (b >= 0xC0 && b <= 0xDF) highCyr++;
+      if (b === 0xB8 || b === 0xA8) cyrExtra++;
+      if (TURK_SET.has(b)) turkSpecific++;
+      if (b >= 0x80 && b <= 0x9F) smartQuotes++;
+      if (b >= 0xB0 && b <= 0xFE) greekRange++;
+    }
+
+    if (!hasHighBytes) return 'ASCII (UTF-8 compatible)';
+
+    // 3. Strict UTF-8 validation
+    const isValidUtf8 = checkUtf8(bytes);
+    if (isValidUtf8) {
+      const utf8Text = new TextDecoder('utf-8').decode(bytes);
+      const hasLatinMisread = /[ðþýÐÞÝ]/.test(utf8Text);
+      if (!hasLatinMisread) return 'UTF-8';
+    }
+
+    // 4. Score-based detection
+    const totalLetterish = asciiLetters + cyrRange;
+    const highByteRatio  = cyrRange / (totalLetterish + 1);
+
+    // Cyrillic
+    if (highByteRatio > 0.35 && highBytes > 10) {
+      if (highCyr > lowCyr * 1.5 && highBytes > 20) return 'KOI8-R';
+      return 'Windows-1251';
+    }
+    if (cyrExtra > 0 && highByteRatio > 0.2) return 'Windows-1251';
+
+    // Turkish
+    if (turkSpecific > 0 && asciiLetters > cyrRange * 2) return 'Windows-1254';
+    let turkSharedCount = 0;
+    for (let i = 0; i < bytes.length; i++) {
+      if (TURK_SHARED.has(bytes[i])) turkSharedCount++;
+    }
+    if (turkSharedCount > 0 && turkSpecific > 0 && highByteRatio < 0.15) return 'Windows-1254';
+
+    // Greek
+    if (greekRange > highBytes * 0.7 && highBytes > 10 && highByteRatio > 0.25) {
+      let greekSpecific = 0;
+      for (let i = 0; i < bytes.length; i++) {
+        const b = bytes[i];
+        if (b >= 0xA1 && b <= 0xAF) greekSpecific++;
+      }
+      if (greekSpecific > 0) return 'Windows-1253';
+    }
+
+    // Central / Western European
+    if (highByteRatio > 0.05 && highByteRatio < 0.35 && cyrRange > 0) {
+      if (smartQuotes > 0) return 'Windows-1250';
+      return 'Windows-1252';
+    }
+
+    if (smartQuotes > 0) return 'Windows-1252';
+    return 'ISO-8859-1';
+  }
+
+  function checkUtf8(bytes) {
+    let i = 0;
+    while (i < bytes.length) {
+      const b = bytes[i];
+      if (b <= 0x7F) { i++; continue; }
+      let seqLen = 0;
+      if      ((b & 0xE0) === 0xC0) seqLen = 2;
+      else if ((b & 0xF0) === 0xE0) seqLen = 3;
+      else if ((b & 0xF8) === 0xF0) seqLen = 4;
+      else return false;
+      if (i + seqLen > bytes.length) return false;
+      for (let j = 1; j < seqLen; j++) {
+        if ((bytes[i + j] & 0xC0) !== 0x80) return false;
+      }
+      if (seqLen === 2 && (b & 0x1E) === 0) return false;
+      if (seqLen === 3 && b === 0xE0 && (bytes[i+1] & 0x20) === 0) return false;
+      if (seqLen === 4 && b === 0xF0 && (bytes[i+1] & 0x30) === 0) return false;
+      i += seqLen;
+    }
+    return true;
+  }
+
+  function decoderNameFor(encoding) {
+    const e = encoding.toLowerCase();
+    if (e.includes('utf-8') || e.includes('ascii'))   return 'utf-8';
+    if (e.includes('utf-16 le'))                       return 'utf-16le';
+    if (e.includes('utf-16 be'))                       return 'utf-16be';
+    if (e.includes('koi8-u'))                           return 'koi8-u';
+    if (e.includes('koi8'))                             return 'koi8-r';
+    if (e.includes('1251'))                             return 'windows-1251';
+    if (e.includes('1254'))                             return 'windows-1254';
+    if (e.includes('1252'))                             return 'windows-1252';
+    if (e.includes('1250'))                             return 'windows-1250';
+    if (e.includes('1253'))                             return 'windows-1253';
+    if (e.includes('1255'))                             return 'windows-1255';
+    if (e.includes('1256'))                             return 'windows-1256';
+    if (e.includes('1258'))                             return 'windows-1258';
+    if (e.includes('874'))                              return 'windows-874';
+    if (e.includes('8859-9'))                           return 'iso-8859-9';
+    if (e.includes('8859-1') && !e.includes('8859-15'))return 'iso-8859-1';
+    if (e.includes('8859-2'))                           return 'iso-8859-2';
+    if (e.includes('8859-4'))                           return 'iso-8859-4';
+    if (e.includes('8859-5'))                           return 'iso-8859-5';
+    if (e.includes('8859-7'))                           return 'iso-8859-7';
+    if (e.includes('8859-15'))                          return 'iso-8859-15';
+    return 'windows-1252';
+  }
+
   // ── File Loading ──────────────────────────────────────────────────────────
   function readFileBuffer(file, which) {
     if (which === 1) sub1Name = file.name;
     const reader = new FileReader();
     reader.onload = e => {
-      const buf   = e.target.result;
-      const bytes = new Uint8Array(buf);
-      let text;
-
-      // Check for UTF-8 BOM (EF BB BF)
-      if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
-        text = new TextDecoder('utf-8').decode(buf);
-      } else {
-        // Try UTF-8 first
-        const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-        // Heuristic 1: replacement chars → definitely not UTF-8
-        // Heuristic 2: common Turkish Windows-1254 mis-read chars when decoded as UTF-8
-        //   ð (U+00F0) = ğ,  þ (U+00FE) = ş,  ý (U+00FD) = ı,
-        //   Ð (U+00D0) = Ğ,  Þ (U+00DE) = Ş,  Ý (U+00DD) = İ
-        const hasBadUtf8 = utf8.includes('\uFFFD');
-        const hasWin1254Turkish = /[ðþýÐÞÝ]/.test(utf8);
-        if (hasBadUtf8 || hasWin1254Turkish) {
-          // windows-1254 = Turkish Windows codepage: 0xF0→ğ, 0xFE→ş, 0xFD→ı etc.
-          text = new TextDecoder('windows-1254').decode(buf);
-        } else {
-          text = utf8;
-        }
-      }
+      const buf     = e.target.result;
+      const bytes   = new Uint8Array(buf);
+      const enc     = detectEncoding(bytes);
+      const decoder = decoderNameFor(enc);
+      const text    = new TextDecoder(decoder, { fatal: false }).decode(buf);
 
       const blocks = parseSrt(text);
       if (which === 1) sub1 = blocks;
